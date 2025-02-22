@@ -27,6 +27,7 @@ Main()
     			case "$1" in
       				-h | --help )
          				Help
+					Destruct
          				exit
 					;;
 				-a | --alias )
@@ -43,6 +44,9 @@ Main()
 					;;
 				-p | --prompt ) 
 					Prompt
+					;;
+				-b | --backup )
+					Backup
 					;;
 
      				-- ) shift; break ;;  # End of options
@@ -65,6 +69,7 @@ Init()
 	# Check if the script is run with sudo
 	if [ "$EUID" -eq 0 ]; then
   		echo "Please run this script not with  sudo."
+		Destruct
   		exit 1
 	fi
 
@@ -76,7 +81,7 @@ Init()
 	vim_run=False
 	packages_run=False
 	promt_run=False
-
+	backup_run=False
 
 }
 
@@ -94,6 +99,7 @@ Destruct()
 	unset vim_run
 	unset packages_run
 	unset promt_run
+	unset backup_run
 }
 
 
@@ -119,6 +125,7 @@ Import_config()
 			. "$conf_file_path" 
 		else
 			echo "Configuration file not found in path $conf_file_path"
+			Destruct
 			exit 1
 		fi
 	fi
@@ -133,6 +140,7 @@ Run_all(){
 	Alias
         Vim
         Prompt
+	Backup
 }
 
 
@@ -142,7 +150,6 @@ Run_all(){
 Update_system()
 {
 	if [[ $update_run == True ]]; then
-		echo update already run
 		return 0
 	fi
 	
@@ -201,10 +208,10 @@ Alias()
 	#  create alias
 	for item in "${alias_list[@]}"
         do
-        	echo "alias $item" >> ~/.bashrc
+		if ! grep -q "$item" ~/.bashrc; then
+        		echo "alias $item" >> ~/.bashrc
+		fi
         done
-	. ~/.bashrc
-
 }
 
 
@@ -221,7 +228,12 @@ Vim()
 
 	Import_config
 	
+	if [[ -e ~/.vim/bundle/Vundle.vim ]]; then
+		rm -rf ~/.vim/bundle/Vundle.vim
+	fi
+	
 	git clone https://github.com/VundleVim/Vundle.vim.git ~/.vim/bundle/Vundle.vim
+	
 	# install vim modules from conf file
 	cat <<< "set nocompatible 
 filetype off                  
@@ -249,13 +261,56 @@ Prompt()
                 return 0
         fi
 
-
 	prompt_run=True
-
+	
+	if [[ ! -e "~/.bash_git" ]]; then
+		curl -L https://raw.github.com/git/git/master/contrib/completion/git-prompt.sh > ~/.bash_git
+	fi
+	
+	if ! grep -q "source ~/.bash_git" ~/.bashrc; then
+		echo "source ~/.bash_git" >> ~/.bashrc
+	fi
+	
 	# Update promt
-	echo "PS1='\u@\h \[\e[32m\]\w \[\e[91m\]$(__git_ps1)\[\e[00m\]$ '" >> ~/.bashrc
-	. ~/.bashrc
+	if ! grep -q '__git_ps1' ~/.bashrc; then
+		echo "PS1='\u@\h \[\e[32m\]\w \[\e[91m\]" '$(__git_ps1)' "\[\e[00m\]$ '" >> ~/.bashrc
+	fi
+}
 
+
+###############################################################################
+# Backup
+###############################################################################
+Backup()
+{
+	if [[ $backup_run == True ]]; then
+                return 0
+        fi
+
+	backup_run=True
+
+	files_to_gzip=("/home/$USER/.bashrc")
+	if [[ -e ~/.bash_git ]]; then
+		echo add
+		files_to_gzip+=("/home/$USER/.bash_git")
+	else
+		echo notadd	
+	fi
+	if [[ -e ~/.bash_git ]]; then
+		echo add
+		files_to_gzip+=("/home/$USER/.bash_git")  
+	else
+		echo notadd
+        fi
+	if [[ -e ~/.vim ]]; then
+		echo add
+		files_to_gzip+=("/home/$USER/.vim/")    
+	else
+		echo notadd
+	fi
+	
+	echo "${files_to_gzip[@]}"
+	tar -czvf ~/after-party-backup.tar.gz  "${files_to_gzip[@]}"
 }
 
 
@@ -268,7 +323,7 @@ Help()
 	echo "Make RHED Linux comfortable to use after fresh install."
 	echo "Without any parrameters will make all options"
 	echo
-	echo "Syntax: after-party.sh [-h|a|u|v|i|p] [--help|alias|update|vim|packages|promt]"
+	echo "Syntax: after-party.sh [-h|a|u|v|i|p|b] [--help|alias|update|vim|packages|promt|backup]"
 	echo "options:"
 	echo "help       Print this Help."
 	echo "alias      Create aliasses for user from conf file. cc: clear, ll: ls -lah "
@@ -276,12 +331,14 @@ Help()
 	echo "vim        Install vim modules."
 	echo "packages   Install usefull packages like git, k8s."
 	echo "promt      Make promt more informative. Add git branch"
+	echo "backup     Make backup to created and updated files to after-party-backup.tar.gz file in home directory"
 	echo "h          Alias to 'help'"
 	echo "a          Alias to 'alias'"
 	echo "u          Alias to 'update'"
 	echo "v          Alias to 'vim'"
 	echo "i          Install packages, alias to 'packages'"
 	echo "p          Alias to 'prompt'"
+	echo "b          Alias to 'backup'"
 	echo
 }
 
