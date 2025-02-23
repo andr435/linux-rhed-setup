@@ -40,4 +40,4 @@ b          Alias to 'backup'
 
 ## Contributing 
 
-Just me, myself and I :-)
+Andrey Mussatov
