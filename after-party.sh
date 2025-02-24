@@ -291,25 +291,17 @@ Backup()
 
 	files_to_gzip=("/home/$USER/.bashrc")
 	if [[ -e ~/.bash_git ]]; then
-		echo add
 		files_to_gzip+=("/home/$USER/.bash_git")
-	else
-		echo notadd	
 	fi
+ 
 	if [[ -e ~/.bash_git ]]; then
-		echo add
 		files_to_gzip+=("/home/$USER/.bash_git")  
-	else
-		echo notadd
         fi
-	if [[ -e ~/.vim ]]; then
-		echo add
-		files_to_gzip+=("/home/$USER/.vim/")    
-	else
-		echo notadd
+
+ 	if [[ -e ~/.vim ]]; then
+		files_to_gzip+=("/home/$USER/.vim/")
 	fi
 	
-	echo "${files_to_gzip[@]}"
 	tar -czvf ~/after-party-backup.tar.gz  "${files_to_gzip[@]}"
 }
 
